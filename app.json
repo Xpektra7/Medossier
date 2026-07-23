@@ -8,7 +8,6 @@
     "android": {
       "package": "com.ontomorph.medsafety",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#FFFFFF"
       }
     },

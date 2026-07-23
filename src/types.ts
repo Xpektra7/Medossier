@@ -24,9 +24,3 @@ export interface AppState {
   error: string | null
   symptoms: Symptom[]
 }
-
-export type RootTabParamList = {
-  Home: undefined
-  Medications: undefined
-  Timeline: undefined
-}
