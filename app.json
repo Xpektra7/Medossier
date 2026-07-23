@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Medication Safety Companion",
+    "slug": "ontomorph-medication-safety",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "com.ontomorph.medsafety",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "ios": {
+      "supportsTablet": false
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}
