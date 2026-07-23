@@ -8,6 +8,7 @@ const AppContext = createContext<AppState>({
   holon: null,
   connectionState: 'connecting',
   error: null,
+  symptoms: [],
 })
 
 const IDLE_TIMEOUT_MS = 24 * 60 * 60 * 1000
@@ -18,6 +19,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     holon: null,
     connectionState: 'connecting',
     error: null,
+    symptoms: [],
   })
 
   const lastActivity = useRef<number>(Date.now())
@@ -34,7 +36,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       try {
         const { twin, holon } = connectSandboxTwin()
         if (!mounted) return
-        setState({ twin, holon, connectionState: 'connected', error: null })
+        setState({ twin, holon, connectionState: 'connected', error: null, symptoms: [] })
       } catch (err: any) {
         if (!mounted) return
         setState({
@@ -42,6 +44,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           holon: null,
           connectionState: 'error',
           error: err.message ?? 'Failed to connect to sandbox twin',
+          symptoms: [],
         })
       }
     }

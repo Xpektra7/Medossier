@@ -7,6 +7,14 @@ export interface Medication {
   lastTaken?: string
 }
 
+export interface Symptom {
+  id: string
+  description: string
+  severity: 'mild' | 'moderate' | 'severe'
+  loggedAt: string
+  relatedDrugs?: string[]
+}
+
 export type ConnectionState = 'connecting' | 'connected' | 'error'
 
 export interface AppState {
@@ -14,6 +22,7 @@ export interface AppState {
   holon: any | null
   connectionState: ConnectionState
   error: string | null
+  symptoms: Symptom[]
 }
 
 export type RootTabParamList = {
