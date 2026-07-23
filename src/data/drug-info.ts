@@ -1,9 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { getDrugInfo as getStaticDrugInfo } from '@/data/drug-info-static'
 import { analyzeHealthPattern } from '@/api/groq'
 
 const CACHE_PREFIX = 'medication-safety:drug-info:'
-const GROQ_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 interface DrugInfoResult {
   rxnorm: string
@@ -12,7 +11,7 @@ interface DrugInfoResult {
   commonBrands?: string[]
   warnings?: string
   bodySystems: string[]
-  source: 'static' | 'groq' | 'cached'
+  source: 'groq' | 'cached' | 'fallback'
 }
 
 async function getCached(rxnorm: string): Promise<DrugInfoResult | null> {
@@ -20,7 +19,7 @@ async function getCached(rxnorm: string): Promise<DrugInfoResult | null> {
     const raw = await AsyncStorage.getItem(`${CACHE_PREFIX}${rxnorm}`)
     if (!raw) return null
     const parsed = JSON.parse(raw)
-    if (Date.now() - parsed.cachedAt > GROQ_CACHE_TTL_MS) return null
+    if (Date.now() - parsed.cachedAt > CACHE_TTL_MS) return null
     return { ...parsed.info, source: 'cached' }
   } catch {
     return null
@@ -38,55 +37,21 @@ async function setCache(rxnorm: string, info: DrugInfoResult) {
   }
 }
 
-export async function fetchDrugInfo(
-  rxnorm: string,
-  drugName?: string
-): Promise<DrugInfoResult> {
-  const staticEntry = getStaticDrugInfo(rxnorm)
-  if (staticEntry) {
-    return { ...staticEntry, source: 'static' }
-  }
+const GENERATION_PROMPT = [
+  'You are a health education writer creating plain-language drug descriptions for Nigerian patients.',
+  'For the drug below, respond with valid JSON only (no markdown, no extra text):',
+  '{ "whatItDoes": "2-sentence plain English explanation", "warnings": "1-2 safety sentences", "bodySystems": ["array of affected body systems"] }',
+  '',
+  'Possible body systems: cardiovascular, gastrointestinal, hepatic, renal, CNS, metabolic, hematologic, dermatologic, endocrine',
+  '',
+  'Drug: {name} (RxNorm: {code})',
+].join('\n')
 
-  const cached = await getCached(rxnorm)
-  if (cached) return cached
-
-  const generated = await generateDrugInfo(rxnorm, drugName)
-  if (generated) {
-    await setCache(rxnorm, generated)
-    return generated
-  }
-
-  return {
-    rxnorm,
-    genericName: drugName ?? `Drug ${rxnorm}`,
-    whatItDoes: 'Information about this drug is not yet available.',
-    warnings: 'Consult your doctor or pharmacist for more information.',
-    bodySystems: [],
-    source: 'static',
-  }
-}
-
-async function generateDrugInfo(
-  rxnorm: string,
-  drugName?: string
-): Promise<DrugInfoResult | null> {
-  const prompt = [
-    `You are a health education writer creating plain-language drug descriptions for Nigerian patients.`,
-    `For the drug below, respond with valid JSON only (no markdown, no extra text):`,
-    `{ "whatItDoes": "2-sentence plain English", "warnings": "1-2 safety sentences", "bodySystems": ["array of affected systems"] }`,
-    ``,
-    `Possible body systems: cardiovascular, gastrointestinal, hepatic, renal, CNS, metabolic, hematologic, dermatologic, endocrine`,
-    ``,
-    `Drug: ${drugName ?? 'unknown'} (RxNorm: ${rxnorm})`,
-  ].join('\n')
+async function generate(rxnorm: string, drugName?: string): Promise<DrugInfoResult | null> {
+  const prompt = GENERATION_PROMPT.replace('{code}', rxnorm).replace('{name}', drugName ?? `Drug ${rxnorm}`)
 
   try {
-    const content = await analyzeHealthPattern(
-      [],
-      [{ name: drugName ?? `RxNorm:${rxnorm}` }],
-      prompt
-    )
-
+    const content = await analyzeHealthPattern([], [{ name: drugName ?? `RxNorm:${rxnorm}` }], prompt)
     if (content.includes('not available') || content.includes('try again')) return null
 
     const jsonStart = content.indexOf('{')
@@ -105,5 +70,25 @@ async function generateDrugInfo(
     }
   } catch {
     return null
+  }
+}
+
+export async function fetchDrugInfo(rxnorm: string, drugName?: string): Promise<DrugInfoResult> {
+  const cached = await getCached(rxnorm)
+  if (cached) return cached
+
+  const generated = await generate(rxnorm, drugName)
+  if (generated) {
+    await setCache(rxnorm, generated)
+    return generated
+  }
+
+  return {
+    rxnorm,
+    genericName: drugName ?? `Drug ${rxnorm}`,
+    whatItDoes: 'Information about this drug is not yet available. Search online or consult your pharmacist.',
+    warnings: 'Always consult your doctor or pharmacist before taking any new medication.',
+    bodySystems: [],
+    source: 'fallback',
   }
 }
