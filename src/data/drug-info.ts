@@ -1,387 +1,109 @@
-export interface DrugInfo {
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { getDrugInfo as getStaticDrugInfo } from '@/data/drug-info-static'
+import { analyzeHealthPattern } from '@/api/groq'
+
+const CACHE_PREFIX = 'medication-safety:drug-info:'
+const GROQ_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
+
+interface DrugInfoResult {
   rxnorm: string
   genericName: string
   whatItDoes: string
   commonBrands?: string[]
   warnings?: string
   bodySystems: string[]
+  source: 'static' | 'groq' | 'cached'
 }
 
-const drugInfoMap: Record<string, DrugInfo> = {
-  '161': {
-    rxnorm: '161',
-    genericName: 'Paracetamol (Acetaminophen)',
-    whatItDoes: 'Lowers fever by acting on the brain\'s temperature centre and relieves mild to moderate pain. It is gentle on the stomach compared to other painkillers.',
-    commonBrands: ['Panadol', 'Emzor Paracetamol', 'Paracare'],
-    warnings: 'Do not take more than 4g (8 tablets of 500mg) in 24 hours. Overdose can damage the liver. Avoid alcohol while taking this drug.',
-    bodySystems: ['hepatic'],
-  },
-  '1191': {
-    rxnorm: '1191',
-    genericName: 'Aspirin',
-    whatItDoes: 'Reduces pain, fever, and inflammation. In low doses, it thins the blood to prevent heart attacks and strokes.',
-    commonBrands: ['Aspirin GP', 'Bayer Aspirin', 'Disprin'],
-    warnings: 'Do not give to children under 12 due to Reye\'s syndrome risk. Can irritate the stomach lining and increase bleeding risk. Avoid if you have a stomach ulcer.',
-    bodySystems: ['cardiovascular', 'gastrointestinal', 'hematologic'],
-  },
-  '5640': {
-    rxnorm: '5640',
-    genericName: 'Ibuprofen',
-    whatItDoes: 'Reduces inflammation, pain, and fever by blocking chemicals that cause swelling. Works well for muscle aches, joint pain, and headaches.',
-    commonBrands: ['Brufen', 'Advil', 'Motrin', 'Ibugesic'],
-    warnings: 'Can irritate the stomach and increase blood pressure. Not suitable if you have kidney problems, a stomach ulcer, or are pregnant. Take with food.',
-    bodySystems: ['gastrointestinal', 'renal'],
-  },
-  '3033': {
-    rxnorm: '3033',
-    genericName: 'Diclofenac',
-    whatItDoes: 'A strong anti-inflammatory drug that relieves pain and swelling in joints and muscles. Often used for arthritis, gout attacks, and post-surgery pain.',
-    commonBrands: ['Voltaren', 'Cataflam', 'Diclomax'],
-    warnings: 'Can cause stomach ulcers and bleeding. Not safe for people with heart disease, kidney problems, or pregnancy (third trimester). Take with food.',
-    bodySystems: ['gastrointestinal', 'cardiovascular', 'renal'],
-  },
-  '4036': {
-    rxnorm: '4036',
-    genericName: 'Naproxen',
-    whatItDoes: 'Reduces inflammation and pain for longer periods — one dose lasts up to 12 hours. Used for arthritis, menstrual cramps, and general pain.',
-    commonBrands: ['Naprosyn', 'Aleve', 'Apronax'],
-    warnings: 'Long-term use increases risk of heart attack, stroke, and stomach bleeding. Avoid if you have high blood pressure, asthma, or kidney disease.',
-    bodySystems: ['gastrointestinal', 'cardiovascular', 'renal'],
-  },
-  '8357': {
-    rxnorm: '8357',
-    genericName: 'Tramadol',
-    whatItDoes: 'A moderate-to-strong painkiller that works on the brain to change how you feel pain. Used when over-the-counter painkillers are not enough.',
-    commonBrands: ['Tramol', 'Ultram', 'Tramake'],
-    warnings: 'Can be habit-forming — only use as prescribed. May cause drowsiness, dizziness, and constipation. Do not take with alcohol or sedatives. Risk of seizures at high doses.',
-    bodySystems: ['CNS'],
-  },
-  '282448': {
-    rxnorm: '282448',
-    genericName: 'Artemether / Lumefantrine',
-    whatItDoes: 'The first-choice treatment for uncomplicated malaria in Nigeria. It kills the malaria parasite in the blood using two different drugs working together.',
-    commonBrands: ['Coartem', 'Lonart', 'Maloxine', 'Amalum'],
-    warnings: 'Take with fatty food to help absorption. Complete the full 3-day course even if you feel better. Common side effects include nausea, headache, and dizziness.',
-    bodySystems: ['gastrointestinal', 'hepatic'],
-  },
-  '190102': {
-    rxnorm: '190102',
-    genericName: 'Artemether',
-    whatItDoes: 'Kills malaria parasites quickly in the blood. Often used in combination with another drug (lumefantrine) to prevent the parasite from becoming resistant.',
-    commonBrands: ['Arthemeter'],
-    warnings: 'Injectable artemether is used for severe malaria in hospital. Intramuscular injections can be painful.',
-    bodySystems: ['hepatic'],
-  },
-  '1790358': {
-    rxnorm: '1790358',
-    genericName: 'Artesunate',
-    whatItDoes: 'A fast-acting malaria drug derived from the sweet wormwood plant. Used for severe malaria, often as an injection in hospital.',
-    commonBrands: ['Artesunate'],
-    warnings: 'For severe malaria, give immediately — every hour counts. Follow the full course. Mild side effects include nausea and dizziness.',
-    bodySystems: ['hepatic'],
-  },
-  '1368': {
-    rxnorm: '1368',
-    genericName: 'Amodiaquine',
-    whatItDoes: 'Kills malaria parasites and is used in combination with artesunate for malaria prevention and treatment, especially in seasonal malaria areas.',
-    commonBrands: ['Amodiaquine', 'Camoquin'],
-    warnings: 'Long-term use can affect the liver. Not recommended for people with existing liver disease. May cause nausea and itching.',
-    bodySystems: ['hepatic'],
-  },
-  '6498': {
-    rxnorm: '6498',
-    genericName: 'Sulfadoxine / Pyrimethamine',
-    whatItDoes: 'Prevents and treats malaria by stopping the parasite from multiplying. Often given to pregnant women as intermittent preventive treatment.',
-    commonBrands: ['Fansidar'],
-    warnings: 'Can cause severe allergic reactions in some people. Not recommended in the first trimester of pregnancy. May affect blood cell counts with long use.',
-    bodySystems: ['hematologic', 'hepatic'],
-  },
-  '2393': {
-    rxnorm: '2393',
-    genericName: 'Chloroquine',
-    whatItDoes: 'An older malaria drug that prevents and treats the disease. Resistance is now common in many parts of Africa, so it is no longer first-line treatment.',
-    commonBrands: ['Chloroquine', 'Nivaquine'],
-    warnings: 'Can cause itching, especially in darker skin. May affect eyesight with long-term use. Not effective in areas with chloroquine-resistant malaria.',
-    bodySystems: ['cardiovascular', 'dermatologic'],
-  },
-  '6754': {
-    rxnorm: '6754',
-    genericName: 'Quinine',
-    whatItDoes: 'An older malaria drug made from cinchona bark. Used for severe malaria when other treatments are not available or have failed.',
-    commonBrands: ['Quinine', 'Quinimax'],
-    warnings: 'Can cause ringing in the ears, headache, and vision changes. Overdose can be dangerous to the heart. Not safe in pregnancy.',
-    bodySystems: ['cardiovascular', 'CNS'],
-  },
-  '723': {
-    rxnorm: '723',
-    genericName: 'Amoxicillin',
-    whatItDoes: 'A common penicillin-type antibiotic that stops bacteria from building their cell walls. Used for ear infections, chest infections, sore throat, and urinary infections.',
-    commonBrands: ['Amoxyl', 'Amoxil', 'Moxilin'],
-    warnings: 'Complete the full course (usually 5-7 days). May cause diarrhoea. Allergic reactions (rash, swelling) require stopping immediately. Not effective against viruses.',
-    bodySystems: ['gastrointestinal'],
-  },
-  '3081': {
-    rxnorm: '3081',
-    genericName: 'Amoxicillin / Clavulanate',
-    whatItDoes: 'A stronger version of amoxicillin — the clavulanate stops bacteria from destroying the antibiotic. Used for tougher infections that resist plain amoxicillin.',
-    commonBrands: ['Augmentin', 'Co-amoxiclav', 'Amoclan'],
-    warnings: 'More likely to cause diarrhoea than plain amoxicillin. Take with food to reduce stomach upset. Finish the full course.',
-    bodySystems: ['gastrointestinal', 'hepatic'],
-  },
-  '6960': {
-    rxnorm: '6960',
-    genericName: 'Metronidazole',
-    whatItDoes: 'Kills certain bacteria and parasites, especially in the gut. Used for diarrhoea, dental infections, and skin infections. Also treats trichomonas and amoeba.',
-    commonBrands: ['Flagyl', 'Metrozol', 'Nidazol'],
-    warnings: 'Do not drink alcohol while taking this drug — it causes severe nausea and vomiting. May leave a metallic taste in the mouth. Complete the full course.',
-    bodySystems: ['gastrointestinal', 'CNS'],
-  },
-  '2551': {
-    rxnorm: '2551',
-    genericName: 'Ciprofloxacin',
-    whatItDoes: 'A broad-spectrum antibiotic that kills many types of bacteria. Used for urinary infections, typhoid, and severe diarrhoea.',
-    commonBrands: ['Ciprotab', 'Cipro', 'Ciplox'],
-    warnings: 'Can cause tendon pain or rupture — stop if you have joint pain. Avoid in children and pregnant women. Stay well hydrated to prevent kidney crystals.',
-    bodySystems: ['renal', 'gastrointestinal'],
-  },
-  '447': {
-    rxnorm: '447',
-    genericName: 'Azithromycin',
-    whatItDoes: 'An antibiotic that only needs a 3-5 day course because it stays active in the body for a long time. Used for chest infections, skin infections, and some sexually transmitted infections.',
-    commonBrands: ['Zithromax', 'Azicine', 'Azifast'],
-    warnings: 'May cause heart rhythm problems in people with existing heart conditions. Can cause nausea and diarrhoea. Take on an empty stomach or with food.',
-    bodySystems: ['cardiovascular', 'gastrointestinal'],
-  },
-  '3640': {
-    rxnorm: '3640',
-    genericName: 'Doxycycline',
-    whatItDoes: 'An antibiotic that treats many infections including chest infections, skin acne, and malaria prevention. Also used for cholera and typhus.',
-    commonBrands: ['Doxycycline', 'Vibramycin', 'Doxinate'],
-    warnings: 'Makes your skin sensitive to sunlight — use sunscreen and cover up. Take with plenty of water while sitting upright to avoid throat irritation.',
-    bodySystems: ['dermatologic', 'gastrointestinal'],
-  },
-  '6856': {
-    rxnorm: '6856',
-    genericName: 'Cotrimoxazole (Sulfamethoxazole / Trimethoprim)',
-    whatItDoes: 'A combination antibiotic that blocks bacteria from making folic acid. Used for chest infections, urinary infections, and prevention of certain infections in HIV patients.',
-    commonBrands: ['Septrin', 'Bactrim', 'Eusaprim'],
-    warnings: 'Can cause severe skin reactions — stop if you develop a rash. Increases sensitivity to sunlight. Drink plenty of water to prevent kidney crystals.',
-    bodySystems: ['dermatologic', 'renal', 'hematologic'],
-  },
-  '692': {
-    rxnorm: '692',
-    genericName: 'Amlodipine',
-    whatItDoes: 'Lowers blood pressure by relaxing and widening your blood vessels, making it easier for the heart to pump blood.',
-    commonBrands: ['Norvasc', 'Amlocor', 'Amlopin'],
-    warnings: 'May cause ankle swelling and mild dizziness when starting. Do not take with grapefruit or grapefruit juice. Takes 1-2 weeks to reach full effect.',
-    bodySystems: ['cardiovascular'],
-  },
-  '782': {
-    rxnorm: '782',
-    genericName: 'Lisinopril',
-    whatItDoes: 'Lowers blood pressure by relaxing blood vessels. Also protects the kidneys in people with diabetes and helps treat heart failure.',
-    commonBrands: ['Lisinopril', 'Zestril', 'Prinivil'],
-    warnings: 'May cause a persistent dry cough. Can raise potassium levels — avoid potassium supplements. Not safe in pregnancy. Check kidney function regularly.',
-    bodySystems: ['cardiovascular', 'renal'],
-  },
-  '864': {
-    rxnorm: '864',
-    genericName: 'Enalapril',
-    whatItDoes: 'Works like lisinopril to lower blood pressure and protect the heart and kidneys. Used for hypertension, heart failure, and diabetic kidney disease.',
-    commonBrands: ['Enalapril', 'Renitec', 'Enalap'],
-    warnings: 'May cause dizziness, especially starting. Can cause a dry cough. Not safe in pregnancy. Monitor kidney function and potassium levels.',
-    bodySystems: ['cardiovascular', 'renal'],
-  },
-  '1207': {
-    rxnorm: '1207',
-    genericName: 'Atenolol',
-    whatItDoes: 'Slows the heart rate and reduces the force of heart contractions, lowering blood pressure. Also used for chest pain (angina) and after heart attacks.',
-    commonBrands: ['Atenolol', 'Tenormin', 'Atenomel'],
-    warnings: 'Do not stop suddenly — it can cause dangerous heart rate spikes. Not recommended for people with asthma. May cause fatigue and cold hands.',
-    bodySystems: ['cardiovascular', 'metabolic'],
-  },
-  '687': {
-    rxnorm: '687',
-    genericName: 'Metoprolol',
-    whatItDoes: 'A beta-blocker that lowers blood pressure and heart rate. Used for hypertension, chest pain, and heart failure. Also prevents migraine attacks.',
-    commonBrands: ['Metoprolol', 'Lopressor', 'Toprol'],
-    warnings: 'Do not stop suddenly. Can mask the signs of low blood sugar in diabetics. May cause fatigue, dizziness, and slow heartbeat.',
-    bodySystems: ['cardiovascular', 'metabolic'],
-  },
-  '3840': {
-    rxnorm: '3840',
-    genericName: 'Losartan',
-    whatItDoes: 'Lowers blood pressure by blocking a chemical that narrows blood vessels. Also protects the kidneys in diabetic patients.',
-    commonBrands: ['Losartan', 'Cozaar', 'Losar'],
-    warnings: 'May cause dizziness. Can increase potassium levels. Not safe in pregnancy. Check kidney function regularly. Less likely to cause cough compared to lisinopril.',
-    bodySystems: ['cardiovascular', 'renal'],
-  },
-  '6809': {
-    rxnorm: '6809',
-    genericName: 'Metformin',
-    whatItDoes: 'Lowers blood sugar by helping the body use insulin better and reducing sugar production in the liver. The first-choice drug for type 2 diabetes.',
-    commonBrands: ['Metformin', 'Glucophage', 'Metforal'],
-    warnings: 'Can cause nausea and diarrhoea when starting — start with a low dose and take with food. Rarely can cause lactic acidosis. Stop temporarily if having surgery or contrast scans.',
-    bodySystems: ['metabolic', 'renal'],
-  },
-  '4240': {
-    rxnorm: '4240',
-    genericName: 'Glibenclamide (Glyburide)',
-    whatItDoes: 'Lowers blood sugar by stimulating the pancreas to release more insulin. Used for type 2 diabetes when metformin alone is not enough.',
-    commonBrands: ['Glibenclamide', 'Daonil', 'Glyburide'],
-    warnings: 'Can cause dangerously low blood sugar (hypoglycaemia) — always carry sugar or glucose. Skip dose if you cannot eat. May cause weight gain.',
-    bodySystems: ['metabolic'],
-  },
-  '6890': {
-    rxnorm: '6890',
-    genericName: 'Insulin',
-    whatItDoes: 'Replaces the insulin your body cannot make. Lowers blood sugar by moving sugar from blood into cells. Essential for type 1 diabetes and some type 2 patients.',
-    commonBrands: ['Insulin', 'Novolin', 'Humulin', 'Lantus'],
-    warnings: 'Can cause low blood sugar if dose is too high or meals are skipped. Store in refrigerator (not freezer). Rotate injection sites to prevent lumps.',
-    bodySystems: ['metabolic'],
-  },
-  '7480': {
-    rxnorm: '7480',
-    genericName: 'Salbutamol (Albuterol)',
-    whatItDoes: 'Opens up the airways in the lungs, making it easier to breathe. Used for asthma attacks and wheezing. Works within minutes when inhaled.',
-    commonBrands: ['Ventolin', 'Salbutamol', 'Asthalin'],
-    warnings: 'If you need your inhaler more than 3 times a week, your asthma is not well controlled — see a doctor. Overuse can cause shaking and rapid heartbeat.',
-    bodySystems: ['cardiovascular'],
-  },
-  '2462': {
-    rxnorm: '2462',
-    genericName: 'Chlorpheniramine',
-    whatItDoes: 'An antihistamine that blocks allergy symptoms like sneezing, runny nose, and itching. Also used for mild allergic reactions and as a cough remedy ingredient.',
-    commonBrands: ['Piriton', 'Chlorpheniramine'],
-    warnings: 'Causes significant drowsiness — do not drive or operate machinery. Avoid alcohol. Not recommended for children under 2 years.',
-    bodySystems: ['CNS'],
-  },
-  '2061': {
-    rxnorm: '2061',
-    genericName: 'Cetirizine',
-    whatItDoes: 'A non-drowsy antihistamine that controls hay fever and allergy symptoms. Works longer than older antihistamines and causes less sleepiness.',
-    commonBrands: ['Cetirizine', 'Zyrtec', 'Cetrin'],
-    warnings: 'May still cause mild drowsiness in some people. Avoid alcohol. Use with caution in kidney disease.',
-    bodySystems: ['CNS'],
-  },
-  '3720': {
-    rxnorm: '3720',
-    genericName: 'Loratadine',
-    whatItDoes: 'A non-drowsy antihistamine for allergies, hay fever, and hives. One dose lasts 24 hours and rarely causes sleepiness.',
-    commonBrands: ['Loratadine', 'Clarityn', 'Lorfast'],
-    warnings: 'Generally very safe. May cause headache or dry mouth in some people. Safe for most adults and children over 2 years.',
-    bodySystems: ['CNS'],
-  },
-  '7643': {
-    rxnorm: '7643',
-    genericName: 'Omeprazole',
-    whatItDoes: 'Reduces stomach acid production. Used for heartburn, acid reflux, stomach ulcers, and protecting the stomach from NSAID damage.',
-    commonBrands: ['Omeprazole', 'Losec', 'Prilosec', 'Omez'],
-    warnings: 'Long-term use may increase risk of bone fractures and vitamin B12 deficiency. Can affect how other drugs work. Take before breakfast.',
-    bodySystems: ['gastrointestinal', 'metabolic'],
-  },
-  '1095': {
-    rxnorm: '1095',
-    genericName: 'Ascorbic Acid (Vitamin C)',
-    whatItDoes: 'An essential vitamin that helps the immune system, wound healing, and iron absorption. The body cannot make or store it — you need it from food or supplements daily.',
-    commonBrands: ['Vitamin C', 'Ascorbic Acid', 'Ceevit'],
-    warnings: 'High doses (above 1000mg) can cause diarrhoea and stomach cramps. May interfere with lab tests. Stay within recommended daily amounts.',
-    bodySystems: ['renal'],
-  },
-  '3990': {
-    rxnorm: '3990',
-    genericName: 'Ferrous Sulfate (Iron)',
-    whatItDoes: 'Replaces iron in the body to treat and prevent anaemia. Iron is needed to make red blood cells that carry oxygen around the body.',
-    commonBrands: ['Ferrous Sulfate', 'Ferrous Sulphate', 'Feosol'],
-    warnings: 'Can cause dark stools (normal), constipation, and stomach upset. Take with vitamin C to improve absorption. Keep away from children — overdose is dangerous.',
-    bodySystems: ['gastrointestinal', 'hematologic'],
-  },
-  '4090': {
-    rxnorm: '4090',
-    genericName: 'Folic Acid',
-    whatItDoes: 'A B vitamin essential for making new red blood cells and for normal growth. Very important in early pregnancy to prevent birth defects.',
-    commonBrands: ['Folic Acid', 'Folvite', 'Folacin'],
-    warnings: 'Very safe. Pregnant women should take 400-800 micrograms daily. High doses can hide vitamin B12 deficiency. Talk to your doctor before starting.',
-    bodySystems: ['hematologic'],
-  },
-  '190521': {
-    rxnorm: '190521',
-    genericName: 'Lumefantrine',
-    whatItDoes: 'Kills malaria parasites by interfering with their ability to digest haemoglobin. Always used in combination with artemether (as Coartem) to prevent resistance.',
-    commonBrands: ['Coartem', 'Lonart', 'Maloxine'],
-    warnings: 'Always take with artemether. Absorption improves with fatty food. Common side effects include headache, dizziness, and nausea.',
-    bodySystems: ['gastrointestinal', 'CNS'],
-  },
-  '3867': {
-    rxnorm: '3867',
-    genericName: 'Erythromycin',
-    whatItDoes: 'An antibiotic that stops bacteria from making proteins they need to grow. Used for chest infections, whooping cough, and skin infections.',
-    commonBrands: ['Erythromycin', 'Erymax', 'Eryc'],
-    warnings: 'Can cause stomach upset and nausea. May interact with many other drugs — tell your doctor what else you take. Can affect heart rhythm in some people.',
-    bodySystems: ['gastrointestinal', 'cardiovascular'],
-  },
-  '2350': {
-    rxnorm: '2350',
-    genericName: 'Cefixime',
-    whatItDoes: 'A cephalosporin antibiotic that kills a wide range of bacteria. Used for typhoid, urinary infections, gonorrhoea, and chest infections.',
-    commonBrands: ['Cefixime', 'Suprax', 'Cefspan'],
-    warnings: 'May cause diarrhoea and stomach upset. Allergic reactions can occur, especially if allergic to penicillin. Complete the full course.',
-    bodySystems: ['gastrointestinal'],
-  },
-  '2381': {
-    rxnorm: '2381',
-    genericName: 'Ceftriaxone',
-    whatItDoes: 'A powerful injectable antibiotic used for serious infections including meningitis, sepsis, pneumonia, and severe typhoid. Given as an injection or IV drip.',
-    commonBrands: ['Ceftriaxone', 'Rocephin', 'Triaxone'],
-    warnings: 'Given by injection only — usually in hospital. Can cause diarrhoea and gallbladder sludge. Do not take with calcium-containing IV fluids in newborns.',
-    bodySystems: ['gastrointestinal'],
-  },
-  '3162': {
-    rxnorm: '3162',
-    genericName: 'Nifedipine',
-    whatItDoes: 'Lowers blood pressure by relaxing and widening blood vessels. Also used to prevent chest pain (angina) and for Raynaud\'s phenomenon.',
-    commonBrands: ['Nifedipine', 'Adalat', 'Procardia'],
-    warnings: 'Can cause ankle swelling, headache, and flushing. Do not take with grapefruit juice. Immediate-release forms should not be used for long-term BP control.',
-    bodySystems: ['cardiovascular'],
-  },
-  '5482': {
-    rxnorm: '5482',
-    genericName: 'Hydrochlorothiazide',
-    whatItDoes: 'A water pill (diuretic) that helps the body get rid of extra salt and water. Lowers blood pressure and reduces swelling.',
-    commonBrands: ['Hydrochlorothiazide', 'Hydrex', 'Esidrix'],
-    warnings: 'Increases urination — take in the morning to avoid nighttime trips. Can lower potassium levels — eat potassium-rich foods. May increase blood sugar.',
-    bodySystems: ['renal', 'metabolic'],
-  },
-  '6750': {
-    rxnorm: '6750',
-    genericName: 'Spironolactone',
-    whatItDoes: 'A potassium-sparing diuretic that removes excess fluid while keeping potassium in the body. Used for heart failure, high blood pressure, and liver cirrhosis with fluid buildup.',
-    commonBrands: ['Spironolactone', 'Aldactone', 'Spiro'],
-    warnings: 'Can raise potassium levels dangerously — avoid potassium supplements and salt substitutes. May cause breast tenderness or enlargement in men. Not safe in pregnancy.',
-    bodySystems: ['renal', 'cardiovascular', 'endocrine'],
-  },
-  '1443': {
-    rxnorm: '1443',
-    genericName: 'Beclometasone (Beclomethasone)',
-    whatItDoes: 'A corticosteroid inhaler that reduces inflammation in the airways. Used daily to prevent asthma attacks and control persistent symptoms.',
-    commonBrands: ['Beclometasone', 'Becotide', 'Qvar', 'Beclate'],
-    warnings: 'Not a rescue inhaler — does not work for sudden asthma attacks. Rinse mouth after use to prevent thrush. Takes 1-2 weeks of daily use to reach full effect.',
-    bodySystems: ['endocrine'],
-  },
-  '21015': {
-    rxnorm: '21015',
-    genericName: 'Multivitamin',
-    whatItDoes: 'A combination of essential vitamins and minerals to fill nutritional gaps in the diet. Contents vary by brand.',
-    commonBrands: ['Multivitamin', 'Daily Vitamins', 'Supravit'],
-    warnings: 'Not a substitute for a healthy diet. Do not exceed recommended dose. Some vitamins can build up to toxic levels if taken in excess.',
+async function getCached(rxnorm: string): Promise<DrugInfoResult | null> {
+  try {
+    const raw = await AsyncStorage.getItem(`${CACHE_PREFIX}${rxnorm}`)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (Date.now() - parsed.cachedAt > GROQ_CACHE_TTL_MS) return null
+    return { ...parsed.info, source: 'cached' }
+  } catch {
+    return null
+  }
+}
+
+async function setCache(rxnorm: string, info: DrugInfoResult) {
+  try {
+    await AsyncStorage.setItem(
+      `${CACHE_PREFIX}${rxnorm}`,
+      JSON.stringify({ info, cachedAt: Date.now() })
+    )
+  } catch {
+    // silent
+  }
+}
+
+export async function fetchDrugInfo(
+  rxnorm: string,
+  drugName?: string
+): Promise<DrugInfoResult> {
+  const staticEntry = getStaticDrugInfo(rxnorm)
+  if (staticEntry) {
+    return { ...staticEntry, source: 'static' }
+  }
+
+  const cached = await getCached(rxnorm)
+  if (cached) return cached
+
+  const generated = await generateDrugInfo(rxnorm, drugName)
+  if (generated) {
+    await setCache(rxnorm, generated)
+    return generated
+  }
+
+  return {
+    rxnorm,
+    genericName: drugName ?? `Drug ${rxnorm}`,
+    whatItDoes: 'Information about this drug is not yet available.',
+    warnings: 'Consult your doctor or pharmacist for more information.',
     bodySystems: [],
-  },
+    source: 'static',
+  }
 }
 
-export function getDrugInfo(rxnormCode: string): DrugInfo | undefined {
-  return drugInfoMap[rxnormCode]
-}
+async function generateDrugInfo(
+  rxnorm: string,
+  drugName?: string
+): Promise<DrugInfoResult | null> {
+  const prompt = [
+    `You are a health education writer creating plain-language drug descriptions for Nigerian patients.`,
+    `For the drug below, respond with valid JSON only (no markdown, no extra text):`,
+    `{ "whatItDoes": "2-sentence plain English", "warnings": "1-2 safety sentences", "bodySystems": ["array of affected systems"] }`,
+    ``,
+    `Possible body systems: cardiovascular, gastrointestinal, hepatic, renal, CNS, metabolic, hematologic, dermatologic, endocrine`,
+    ``,
+    `Drug: ${drugName ?? 'unknown'} (RxNorm: ${rxnorm})`,
+  ].join('\n')
 
-export function getAllDrugInfo(): Record<string, DrugInfo> {
-  return drugInfoMap
+  try {
+    const content = await analyzeHealthPattern(
+      [],
+      [{ name: drugName ?? `RxNorm:${rxnorm}` }],
+      prompt
+    )
+
+    if (content.includes('not available') || content.includes('try again')) return null
+
+    const jsonStart = content.indexOf('{')
+    const jsonEnd = content.lastIndexOf('}')
+    if (jsonStart === -1 || jsonEnd === -1) return null
+
+    const parsed = JSON.parse(content.slice(jsonStart, jsonEnd + 1))
+
+    return {
+      rxnorm,
+      genericName: drugName ?? `Drug ${rxnorm}`,
+      whatItDoes: parsed.whatItDoes ?? 'No description available.',
+      warnings: parsed.warnings ?? undefined,
+      bodySystems: Array.isArray(parsed.bodySystems) ? parsed.bodySystems : [],
+      source: 'groq',
+    }
+  } catch {
+    return null
+  }
 }

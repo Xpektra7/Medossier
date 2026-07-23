@@ -1,29 +1,7 @@
 import { describe, it, expect } from 'bun:test'
-import { getAllDrugInfo, getDrugInfo } from '@/data/drug-info'
-import { getAllSynonyms } from '@/data/nigeria-synonyms'
+import { getDrugInfo, getAllStaticDrugInfo } from '@/data/drug-info-static'
 
-describe('drug-info', () => {
-  it('every synonym drug has a drug-info entry', () => {
-    const synonyms = getAllSynonyms()
-    const drugInfo = getAllDrugInfo()
-    const seen = new Set<string>()
-
-    for (const entry of Object.values(synonyms)) {
-      if (seen.has(entry.rxnorm)) continue
-      seen.add(entry.rxnorm)
-      expect(drugInfo[entry.rxnorm]).toBeDefined()
-    }
-  })
-
-  it('every drug-info entry has whatItDoes', () => {
-    const info = getAllDrugInfo()
-    for (const [code, entry] of Object.entries(info)) {
-      expect(entry.whatItDoes).toBeTruthy()
-      expect(entry.genericName).toBeTruthy()
-      expect(Array.isArray(entry.bodySystems)).toBe(true)
-    }
-  })
-
+describe('drug-info-static (offline fallback)', () => {
   it('paracetamol info is correct', () => {
     const info = getDrugInfo('161')
     expect(info).toBeDefined()
@@ -46,18 +24,26 @@ describe('drug-info', () => {
     expect(info!.bodySystems).toContain('gastrointestinal')
   })
 
-  it('has at least 40 unique RxNorm entries', () => {
-    const info = getAllDrugInfo()
-    expect(Object.keys(info).length).toBeGreaterThanOrEqual(40)
+  it('metformin info includes metabolic and renal', () => {
+    const info = getDrugInfo('6809')
+    expect(info).toBeDefined()
+    expect(info!.bodySystems).toContain('metabolic')
+    expect(info!.bodySystems).toContain('renal')
+  })
+
+  it('has at least 5 static entries for offline coverage', () => {
+    const info = getAllStaticDrugInfo()
+    expect(Object.keys(info).length).toBeGreaterThanOrEqual(5)
   })
 
   it('returns undefined for unknown code', () => {
     expect(getDrugInfo('999999')).toBeUndefined()
   })
 
-  it('all info entries have warnings or empty string', () => {
-    const info = getAllDrugInfo()
+  it('all static entries have whatItDoes and warnings', () => {
+    const info = getAllStaticDrugInfo()
     for (const entry of Object.values(info)) {
+      expect(entry.whatItDoes).toBeTruthy()
       expect(entry.warnings).toBeDefined()
     }
   })
