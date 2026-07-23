@@ -1,6 +1,6 @@
-# Medication Safety Companion — Product Spec
+# Medossier — Product Spec
 
-> **Tagline:** *"Taking multiple drugs? Know what's safe."*
+> **Tagline:** *"Your health, documented + understood."*
 > **Build target:** 2 days · **Platform:** Android (Expo) · **Audience:** Nigerian patients & caregivers
 
 ---
@@ -24,7 +24,9 @@ A mobile app where patients/caregivers:
 3. **Get interaction checks** against 1.7M drug pairs (HOLON)
 4. **See which body systems are affected** by each interaction
 5. **Get clear severity alerts** — contraindicated combos flagged immediately
-6. **Track what they take and when** — timeline of medication activity
+6. **Log symptoms** — track what they feel, when, and which drugs were active
+7. **Get AI-powered pattern insights** — plain-language explanations linking symptoms to medications
+8. **See a unified timeline** — medications + symptoms, all in one place
 
 ## 3. Core features (priority order)
 
@@ -136,4 +138,29 @@ Cover all 50+ entries from the synonym map. This makes the app educational, not 
 
 ---
 
-*Spec v1.0 — Build target: 2 days*
+## 8. Hackathon scope
+
+### In scope (ship by Friday 23:00 WAT)
+- Drug search with Nigerian name support + plain-language explanations
+- Medication list (add, remove, mark taken) with AsyncStorage persistence
+- Interaction checking via HOLON (1.7M pairs) with severity + body system tags
+- Symptom ledger (log symptoms, severity, related meds) with persistence
+- Merged timeline (medication events + symptom entries, sorted by date)
+- AI pattern analysis via Groq (symptom + medication patterns, plain-language insight)
+- Twin event logging (`twin.flag()` for medication.added, interaction.found, symptom.logged)
+- Toast notifications + connection badge
+
+### Deferred (post-hackathon roadmap)
+- Multi-doctor / pharmacist coordination and shared access
+- Real patient grant flow (production twin grants instead of sandbox)
+- Caregiver sharing (family member monitoring)
+- Push notifications for dangerous interactions
+- Full 50+ Nigerian drug info (ship with ~20, expand later)
+- Clinic/hospital dashboard integration
+- Prescription scanning (OCR)
+
+The identity of **Medossier** — a personal health dossier that bridges patients and doctors — is fully intact with the in-scope features. The deferred features expand the network, not the core value.
+
+---
+
+*Spec v2.0 — Build target: 2 days (hackathon) · Medossier*

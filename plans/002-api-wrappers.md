@@ -13,6 +13,20 @@
    - Otherwise calls `holon.concepts.search(query, { domain: 'Drug' })` for full-text search across all vocabularies
    - Returns query, results (`SearchHit[]` from the SDK), loading, error, `resolvedFromSynonym` flag
    - The SDK's `SearchHit` carries `conceptId`, `conceptCode`, `conceptName`, `vocabularyId`, `domainId`
+5b. Create `src/hooks/useSymptomLog.ts`:
+   - Holds `symptoms: Symptom[]` state
+   - `logSymptom(description, severity)` — creates a `Symptom` entry with current timestamp + snapshot of active `medications[].rxnormCode`
+   - Calls `twin.flag('symptoms', { code: 'symptom.logged', value: JSON.stringify(symptom), title: description })` — fire and forget
+   - Persists to AsyncStorage under key `medication-safety:symptoms`
+   - Loads from storage on mount
+   - Returns `{ symptoms, logSymptom, clearSymptoms }`
+5c. Create `src/hooks/usePatternAnalysis.ts`:
+   - Takes `symptoms: Symptom[]` and `medications: Medication[]`
+   - Exposes `analyze(): Promise<void>` and `{ insight: string | null, loading: boolean, error: string | null }`
+   - On `analyze()` call, builds a plain-text summary of symptoms logged in last 30 days + active medications
+   - Calls `analyzeHealthPattern()` from `src/api/groq.ts`
+   - Stores result in `insight` state
+   - Rate-limits: blocks calls if last call was < 30 seconds ago
 6. `bun run tsc --noEmit` — must exit 0.
 
 ## Verification

@@ -12,14 +12,23 @@
    - `EXPO_PUBLIC_DTP_API_KEY` — `dtp_live_…` or `dtp_test_…` from `/dashboard/keys`
    - `EXPO_PUBLIC_SANDBOX_GRANT_TOKEN` — grant token copied from the Sandbox page on developer dashboard
    - `EXPO_PUBLIC_HOLON_API_KEY` — `holon_…` key for clinical knowledge API
-   - `EXPO_PUBLIC_HOLON_API_URL` — defaults to `https://holon.ontomorph.com`
+   - `EXPO_PUBLIC_HOLON_API_URL` — defaults to `https://holon-api.ontomorph.com`
+   - `EXPO_PUBLIC_GROQ_API_KEY` — Groq API key for LLM pattern analysis
 6. Create `src/theme/colors.ts` with semantic color tokens.
 7. **No hand-rolled REST wrappers.** Create `src/api/dtp.ts` that:
    - Exports `getDTP()` — singleton factory that creates a `DTP` instance from `@ontomorph/dtp-sdk` with `apiKey`, `holonApiUrl`, `holonApiKey` from env vars
    - Exports `connectSandboxTwin()` — reads `EXPO_PUBLIC_SANDBOX_GRANT_TOKEN` from env, calls `dtp.twins.connect(grantToken)` and returns `{ twin, holon }`
    - `Twin` exposes `twin.systems.get()`, `twin.events.list()`, `twin.flag()`, `twin.events.stream()`
    - `holon` exposes `concepts.search()`, `concepts.getByCode()`, `interactions.check()`, `interactions.checkList()`
-8. Create `src/types.ts` — `Medication` interface (id, conceptId, rxnormCode, name, addedAt, lastTaken?), `ConnectionState` enum (`connecting`/`connected`/`error`), `AppState` (twin, holon, connectionState, error), `RootTabParamList` (Home, Medications, Timeline).
+7b. Create `src/api/groq.ts` — Groq free-tier LLM wrapper for pattern intelligence:
+   - Exports `async function analyzeHealthPattern(symptoms: Symptom[], medications: Medication[], systemPrompt: string): Promise<string>`
+   - Builds a structured prompt from symptom history + active medications
+   - POSTs to `https://api.groq.com/openai/v1/chat/completions` with `Authorization: Bearer $GROQ_KEY`
+   - Uses model `llama-3.3-70b-versatile`, `max_tokens: 300`, `temperature: 0.3`
+   - Returns `choices[0].message.content` as plain string
+   - Returns a safe fallback string on any error (never throws to UI)
+   - Default system prompt: `You are a health assistant helping Nigerian patients understand patterns in their symptoms and medications. You do NOT diagnose. You surface 2-3 possible explanations and always end with "Please see a doctor to confirm." Be brief, plain, and direct. No medical jargon.`
+8. Create `src/types.ts` — `Medication` interface (id, conceptId, rxnormCode, name, addedAt, lastTaken?), `Symptom` interface (id, description, severity: 'mild'|'moderate'|'severe', loggedAt, relatedDrugs?: string[]), `ConnectionState` enum (`connecting`/`connected`/`error`), `AppState` (twin, holon, connectionState, error, symptoms), `RootTabParamList` (Home, Medications, Timeline).
 9. Create `src/hooks/useApp.ts` — shared React context/hook that:
    - On mount, calls `connectSandboxTwin()` to get `{ twin, holon }` using the static grant token from `.env`
    - Stores both in state
