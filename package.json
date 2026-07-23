@@ -6,7 +6,10 @@
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
-    "tsc": "tsc --noEmit"
+    "tsc": "tsc --noEmit",
+    "test": "bun test",
+    "test:unit": "bun test tests/data/ tests/api/",
+    "test:integration": "bun test tests/integration/"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.4",

@@ -6,13 +6,15 @@ export function getDTP() {
   if (!dtpInstance) {
     const apiKey = process.env.EXPO_PUBLIC_DTP_API_KEY
     const holonApiKey = process.env.EXPO_PUBLIC_HOLON_API_KEY
-    const holonApiUrl = process.env.EXPO_PUBLIC_HOLON_API_URL ?? 'https://holon.ontomorph.com'
+    const holonApiUrl = process.env.EXPO_PUBLIC_HOLON_API_URL ?? 'https://holon-api.ontomorph.com'
+    const baseUrl = process.env.EXPO_PUBLIC_DTP_API_URL ?? 'https://sandbox-api.ontomorph.com'
 
     if (!apiKey) throw new Error('EXPO_PUBLIC_DTP_API_KEY is not set')
     if (!holonApiKey) throw new Error('EXPO_PUBLIC_HOLON_API_KEY is not set')
 
     dtpInstance = new DTP({
       apiKey,
+      baseUrl,
       holonApiUrl,
       holonApiKey,
     })
