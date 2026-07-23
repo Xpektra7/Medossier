@@ -2,19 +2,19 @@
 
 > *Your health, documented + understood.*
 
-A mobile health dossier for Nigerian patients — search drugs, check interactions, log symptoms, and get AI-powered pattern insights. Built for people who manage multiple medications across multiple clinics, with no single professional reviewing the full picture.
+A health diary and safety net for every Nigerian patient. Search drugs, check interactions, log symptoms and ailments, and get AI-powered pattern insights. Whether you see a doctor regularly or only when things get bad — Medossier keeps your health story in one place.
 
 ## The problem
 
-Nigerian patients routinely take 3–5+ drugs simultaneously, prescribed at different clinics. **79.7% of prescriptions contain potential drug-drug interactions.** The doctor-to-patient ratio is 1:9,083 — 1000% below WHO recommendation. Most patients have no way to check if their medications are safe together. Until now.
+The doctor-to-patient ratio in Nigeria is 1:9,083 — 1000% below WHO recommendation. Most people don't go to a hospital for every symptom or ailment. Health history is scattered across memory, paper scraps, and multiple clinic files that no one connects. **79.7% of prescriptions contain potential drug-drug interactions.** When you finally see a doctor, there's no complete record of what's been happening.
 
 ## What Medossier does
 
+- **Log** every symptom, ailment, and medication — no matter how minor — in one unified timeline
 - **Search** any drug by name (brand, generic, Nigerian local) — plain-language explanation of what it does
-- **Check** 1.7M known drug interactions — sees which organs are at risk, severity alerts
-- **Log** symptoms and medications — unified timeline of your health
+- **Check** 1.7M known drug interactions — see which organs are at risk, severity alerts
 - **Analyze** patterns with Groq AI — plain-English insights linking symptoms to medications (never a diagnosis)
-- **Persist** everything locally — your data stays on your device
+- **Persist** everything locally on your device — you own your data
 
 ## Built with
 
@@ -37,7 +37,7 @@ See [`plans/`](plans/) for the phased build plan used during the hackathon.
 
 **Deferred:** multi-doctor coordination, caregiver sharing, push notifications, real patient twin grants.
 
-The identity of Medossier — a personal health dossier bridging patients and doctors — is fully intact in the in-scope features.
+The identity of Medossier — a personal health dossier for every Nigerian patient — is fully intact in the in-scope features.
 
 ---
 
