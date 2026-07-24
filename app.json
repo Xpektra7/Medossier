@@ -1,14 +1,21 @@
 {
   "expo": {
-    "name": "Medication Safety Companion",
-    "slug": "ontomorph-medication-safety",
+    "name": "Medossier",
+    "slug": "medossier",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#40ed0c"
+    },
     "android": {
-      "package": "com.ontomorph.medsafety",
+      "package": "com.medossier.app",
       "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#40ed0c"
       }
     },
     "ios": {
