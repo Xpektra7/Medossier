@@ -6,7 +6,7 @@ import type { Symptom } from '@/types'
 const STORAGE_KEY = 'medication-safety:symptoms'
 
 export function useSymptomLog() {
-  const { twin } = useApp()
+  const { twin, medications } = useApp()
   const [symptoms, setSymptoms] = useState<Symptom[]>([])
 
   useEffect(() => {
@@ -26,11 +26,14 @@ export function useSymptomLog() {
   }, [])
 
   function logSymptom(description: string, severity: 'mild' | 'moderate' | 'severe') {
+    const relatedDrugs = medications.map((m) => m.rxnormCode).filter(Boolean) as string[]
+
     const symptom: Symptom = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       description,
       severity,
       loggedAt: new Date().toISOString(),
+      relatedDrugs: relatedDrugs.length > 0 ? relatedDrugs : undefined,
     }
 
     setSymptoms((prev) => {

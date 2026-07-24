@@ -1,4 +1,4 @@
-import type { Symptom } from '@/types'
+import type { Symptom, Medication } from '@/types'
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 
@@ -7,7 +7,7 @@ const DEFAULT_SYSTEM_PROMPT =
 
 export async function analyzeHealthPattern(
   symptoms: Symptom[],
-  medications: { name: string }[],
+  medications: Medication[],
   systemPrompt: string = DEFAULT_SYSTEM_PROMPT
 ): Promise<string> {
   const apiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY
