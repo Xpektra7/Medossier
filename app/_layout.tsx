@@ -6,7 +6,7 @@ import 'react-native-reanimated'
 
 import { useColorScheme } from '@/hooks/use-color-scheme'
 import { useLoadFonts } from '@/hooks/useLoadFonts'
-import '@/src/global.css'
+import '@/global.css'
 
 SplashScreen.preventAutoHideAsync()
 
