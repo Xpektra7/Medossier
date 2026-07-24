@@ -17,6 +17,6 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "App.tsx"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "app/**/*.tsx", "app/**/*.ts"],
   "exclude": ["node_modules", "babel.config.js", "metro.config.js", "tests"]
 }

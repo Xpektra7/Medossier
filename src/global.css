@@ -1,0 +1,17 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@layer theme {
+  @theme {
+    --color-primary: #40ed0c;
+    --color-primary-dark: #36c40a;
+    --color-danger: #fcae32;
+    --color-text: #000000;
+    --color-muted: #d9d9d9;
+    --color-surface: #ffffff;
+
+    --font-sans: "Poppins", sans-serif;
+    --font-heading: "Agrandir", sans-serif;
+  }
+}
