@@ -17,7 +17,7 @@ export default function TabLayout() {
           height: 64,
         },
         tabBarLabelStyle: {
-          fontFamily: 'Poppins_500Medium',
+          fontFamily: 'Poppins Medium',
           fontSize: 11,
           fontWeight: '500',
         },

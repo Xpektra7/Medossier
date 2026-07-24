@@ -172,4 +172,6 @@ export function useApp() {
   return useContext(AppContext)
 }
 
-function noop() {}
+function noop(): Promise<void> {
+  return Promise.resolve()
+}
